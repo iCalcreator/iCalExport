@@ -1,18 +1,20 @@
 <?php
-# MantisBT - a php based bugtracking system
-# Copyright (C) 2002 - 2013  MantisBT Team - mantisbt-dev@lists.sourceforge.net
-# MantisBT is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
-# (at your option) any later version.
-#
-# MantisBT is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with MantisBT.  If not, see <http://www.gnu.org/licenses/>.
+/**
+ * Copyright (C) 2013 Kjell-Inge Gustafsson, kigkonsult, All rights reserved <ical@kigkonsult.se>
+ *
+ * iCalExport is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * iCalExport is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with iCalExport.  If not, see <http://www.gnu.org/licenses/>.
+ */
 /**
  * iCal Export Plugin
  * @package    MantisPlugin
@@ -21,8 +23,8 @@
  * @license    GNU General Public License (GPL)
  * @link       http://kigkonsult.se/iCalExport
  * @author     Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
- * @version    1.0
- * @since      1.0 - 2013-11-02
+ * @version    1.05
+ * @since      1.05 - 2013-11-09
  */
 /* MantisBT Core API's */
 require_once( 'core.php' );
@@ -67,47 +69,22 @@ $t_show_tags     = access_has_global_level( config_get( 'tag_view_threshold' ));
 $t_url           = config_get( 'path' );
 # Ignored fields, these will be skipped
 $t_ignore        = array( '_stats', 'bug_text_id', );
-# properties that we want to export are 'protected', also add iCalExport 'sequence'
+# properties that we want to export are 'protected'
 $t_columns       = array_keys( getClassProperties( 'BugData', 'protected' ));
-$t_columns[]     = 'sequence';
-# iCalcreator is required
-require_once dirname( __FILE__ ) . DIRECTORY_SEPARATOR . 'iCalcreator.class.php'; // iCalcreator 2.x
-// require_once dirname( __FILE__ ) . DIRECTORY_SEPARATOR . 'iCalcreator.php';       // iCalcreator 3.x
 # iCalcreator setup
 $t_calendar      = new vcalendar();
 $t_parsed_url    = parse_url( $t_url );                     // TODO, find site/system unique id??!!
 $t_unique_id     = $t_parsed_url['host'];                   // TODO, find site/system unique id??!!
 $t_calendar->setConfig( 'unique_id', $t_unique_id );
-// $t_calendar->setProperty( 'X-path', config_get( 'absolute_path_default_upload_folder' )); // test ###
-# format iCal dates with UTC timezone
-function localTimestamp2UTCdate( $p_value=null, $p_modify=FALSE ) {
-  global $g_default_timezone;
-  if( empty( $p_value ))
-    $p_value     = time();
-  $t_fmt         = 'Ymd\THis';
-  try {
-    $t_date = new DateTime( date( $t_fmt, $p_value ), new DateTimeZone( $g_default_timezone ));
-    if( $p_modify )
-      $t_date->modify( $p_modify );
-    $t_date->setTimezone( new DateTimeZone( 'UTC' ));       // set UTC timezone
-    return $t_date->format( $t_fmt.'Z' );
-  }
-  catch( Exception $e ) {
-    if( $p_modify )
-      $p_value   = strtotime( date( $t_fmt, $p_value ) . ' ' . $p_modify );
-    return date( $t_fmt, $p_value );                        // 'float' (local) timezone
-  }
-}
-$_iCal_inl_eol   = '\n ';                                   // iCal text inline end-of-line characters
+$t_iCal_inl_eol  = '\n';                                    // iCal text inline end-of-line characters
+$t_std_eol       = array( "\r\n", "\n\r", "\n", "\r" );
 # this iCal TODO calendar is simply a 'posting' one, NO 'request' TODO calendar (i.e. issues are already assigned)
 $t_calendar->setProperty( 'METHOD', 'PUBLISH' );
 # set some optional iCal calendar properties, 'required' by some calendar software
 $t_calendar->setProperty( 'X-WR-CALNAME', $t_user_name . plugin_lang_get( 'x_wr_calname' ));
-//$t_calendar->setProperty( 'X-WR-CALDESC', $t_user_name . plugin_lang_get( 'x_wr_caldesc' ) . $t_unique_id . ' (' . localTimestamp2UTCdate() . ')' );
+//$t_calendar->setProperty( 'X-WR-CALDESC', $t_user_name . plugin_lang_get( 'x_wr_caldesc' ) . $t_unique_id . ' (' . local_timestamp_2_UTCdate() . ')' );
 $t_calendar->setProperty( 'X-WR-CALDESC', $t_user_name . plugin_lang_get( 'x_wr_caldesc' ) . $t_unique_id . ' (' . date( $t_normal_date_format ) . ')' );
 $t_calendar->setProperty( 'X-WR-TIMEZONE', 'UTC' );
-# map mantis priorities to iCal priorities
-$t_priorities    = array( 10 => 0, 20 => 7, 30 => 5, 40 => 4, 50 => 2, 60 => 1 );
 # mantis bug properties order in an iCal DESCRIPTION property
 $t_descrArr      = array( 'project'                => ''
                         , 'id'                     => ''
@@ -142,21 +119,22 @@ $t_descrArr      = array( 'project'                => ''
 $t_descrArr_kw   = 0;
 foreach( $t_descrArr as $t_key => $t_value )
   if( $t_descrArr_kw < strlen( $t_key ))
-# map mantis eta property to date modification string
-$t_etas          = array( 10 => '', 20 => '+ 1 day', 30 => '+ 3 days', 40 => '+ 7 days', 50 => '+ 1 month', 60 => '+ 2 month' );
+    $t_descrArr_kw   = strlen( $t_key );
 # export each row into an vcalendar vtodo object instance
 foreach( $t_result as $t_bug ) {
   if( ! isset( $t_bug->id ))
     continue;
-  $t_vtodo       = $t_calendar->newComponent( 'vtodo' );
-  $t_dtstart     = $t_eta = $t_due = $t_organizer = $t_priority = $t_summary = null;
+  $t_dtstart     = $t_last_updated = $t_eta = $t_due = $t_organizer = $t_priority = $t_summary = null;
   foreach( $t_descrArr as $t_k => $t_v )
     $t_descrArr[$t_k] = '';
+  $t_vtodo       = $t_calendar->newComponent( 'vtodo' );
 # set iCal component UID property, Universal IDentifier
   $t_uid_date    = ( isset( $t_bug->date_submitted )) ? $t_bug->date_submitted : null;
-  $t_vtodo->setProperty( 'UID', localTimestamp2UTCdate( $t_uid_date ) . ':'.$t_bug->id . '@' . $t_unique_id );
+  $t_vtodo->setProperty( 'UID', local_timestamp_2_UTCdate( $t_uid_date ) . '-'.$t_bug->id . '@' . $t_unique_id );
 # set iCal component URL property, a link back to mantis bug report
-  $t_vtodo->setProperty( 'URL', $t_url.'view.php?id='.$t_bug->id );
+  $t_vtodo->setProperty( 'URL', $t_url . 'view.php?id=' . $t_bug->id );
+# set iCal component SEQUENCE property from mantis plugin table bug_update_sequence
+  $t_vtodo->setProperty( 'SEQUENCE', bug_get_update_sequence( $t_bug->id ));
   foreach( $t_columns as $t_element ) {
     if( in_array( $t_element, $t_ignore ) ) {
       continue;
@@ -187,19 +165,6 @@ foreach( $t_result as $t_bug ) {
         if( array_key_exists( 'handler', $t_descrArr ))
           $t_descrArr['handler'] = user_get_name( $t_value );
         break;
-# set iCal component SEQUENCE property from mantis bug report property sequence
-      case 'sequence':
-        $t_vtodo->setProperty( 'SEQUENCE', $t_value );
-        break;
-# set iCal component PRIORITY property using mantis bug report property priority
-      case 'priority':
-        $t_priority = $t_value;
-        if( isset( $t_priorities[$t_value] ) && ! empty( $t_priorities[$t_value] )) {
-          $t_vtodo->setProperty( 'PRIORITY', $t_priorities[$t_value] );
-          if( array_key_exists( $t_element, $t_descrArr ))
-            $t_descrArr[$t_element] = get_enum_element( $t_element, $t_value );
-        }
-        break;
 # set iCal component CATEGORIES property using mantis bug report property category_id
       case 'category_id':
         $t_category = category_get_name( $t_value );
@@ -207,15 +172,11 @@ foreach( $t_result as $t_bug ) {
         if( array_key_exists( 'category', $t_descrArr ))
           $t_descrArr['category'] = $t_category;
         break;
-# set iCal component CREATED and DTSTART properties from mantis bug report property date_submitted
       case 'date_submitted':
         $t_dtstart = $t_value;
-        $t_vtodo->setProperty( 'DTSTART', localTimestamp2UTCdate( $t_value ));
-        $t_vtodo->setProperty( 'CREATED', localTimestamp2UTCdate( $t_value ));
         break;
-# set iCal component LAST-MODIFIED property from mantis bug report property last_updated
       case 'last_updated':
-        $t_vtodo->setProperty( 'LAST-MODIFIED', localTimestamp2UTCdate( $t_value ));
+        $t_last_updated = $t_value;
         break;
       case 'eta':
         $t_eta = $t_value;
@@ -225,24 +186,73 @@ foreach( $t_result as $t_bug ) {
 # set iCal component DUE property from mantis bug report property due_date
       case 'due_date':
         if( ! date_is_null( $t_value )) {
-          $t_due = localTimestamp2UTCdate( $t_value );
+          $t_due = local_timestamp_2_UTCdate( $t_value );
           $t_vtodo->setProperty( 'DUE', $t_due );
         }
         break;
-# set iCal component STATUS property using mantis bug report property view_state
+# set iCal component PRIORITY property using mantis bug report property priority
+      case 'priority':
+        $t_priority = $t_value;
+        switch( $t_value ) {
+          case 60:
+            $t_vtodo->setProperty( 'PRIORITY', 1 );
+            break;
+          case 50:
+            $t_vtodo->setProperty( 'PRIORITY', 2 );
+            break;
+          case 40:
+            $t_vtodo->setProperty( 'PRIORITY', 4 );
+            break;
+          case 30:
+            $t_vtodo->setProperty( 'PRIORITY', 5 );
+            break;
+          case 20:
+            $t_vtodo->setProperty( 'PRIORITY', 7 );
+            break;
+          case 10:
+          default:
+            $t_vtodo->setProperty( 'PRIORITY', 0 );
+            break;
+        }
+        if( array_key_exists( $t_element, $t_descrArr ))
+          $t_descrArr[$t_element] = get_enum_element( $t_element, $t_value );
+        break;
+# set iCal component STATUS property using mantis bug report property resolution
+      case 'resolution':
+        switch( $t_value ) {
+          case 10:           // open
+          case 30:           // reopened,
+            $t_vtodo->setProperty( 'STATUS', 'IN-PROCESS' );
+            break;
+          case 20:           // fixed
+            $t_vtodo->setProperty( 'STATUS', 'COMPLETED' );
+            break;
+          case 40:           // unable to duplicate
+          case 50:           // not fixable
+          case 60:           // duplicate
+          case 70:           // not a bug
+          case 80:           // suspended
+          case 90:           // wont fix
+          default:
+            $t_vtodo->setProperty( 'STATUS', 'CANCELLED' );
+            break;
+        }
+        if( array_key_exists( $t_element, $t_descrArr ))
+          $t_descrArr[$t_element] = get_enum_element( $t_element, $t_value );
+        break;
+# set iCal component CLASS property using mantis bug report property view_state
       case 'view_state':
         switch( $t_value ) {
           case 50:
-            $t_vtodo->setProperty( 'STATUS', 'PRIVATE' );
+            $t_vtodo->setProperty( 'CLASS', 'PRIVATE' );
             break;
           default:
-            $t_vtodo->setProperty( 'STATUS', 'PUBLIC' );
+            $t_vtodo->setProperty( 'CLASS', 'PUBLIC' );
             break;
         }
       case 'severity':
       case 'reproducibility':
       case 'status':
-      case 'resolution':
       case 'projection':
         if( array_key_exists( $t_element, $t_descrArr ))
           $t_descrArr[$t_element] = get_enum_element( $t_element, $t_value );
@@ -256,13 +266,42 @@ foreach( $t_result as $t_bug ) {
           $t_descrArr[$t_element] = $t_value;
     } // end switch( $t_element )
   } // end foreach( $t_columns as $t_element )
-# convert mantis eta property to an iCal DUE date property, based on mantis bug report property date_submitted
-  if( ! empty( $t_dtstart ) && empty( $t_due ) && ! empty( $t_eta ) &&
-     isset( $t_etas[$t_eta] ) && ! empty( $t_etas[$t_eta] ))
-    $t_vtodo->setProperty( 'DUE', localTimestamp2UTCdate( $t_dtstart, $t_etas[$t_eta] ));
-# assure iCal DTSTART is set
-  if( empty( $t_dtstart ))
-    $t_vtodo->setProperty( 'DTSTART', localTimestamp2UTCdate()); // assure any date is set!!
+# set iCal components CREATED and DTSTART from mantis bug report property date_submitted
+  if( empty( $t_dtstart )) // ??
+    $t_dtstart = time();
+  $t_vtodo->setProperty( 'DTSTART', local_timestamp_2_UTCdate( $t_dtstart ));
+  $t_vtodo->setProperty( 'CREATED', local_timestamp_2_UTCdate( $t_dtstart ));
+# set iCal component LAST-MODIFIED property from mantis bug report property last_updated
+  if( ! empty( $t_last_updated ) && ( $t_last_updated != $t_dtstart ))
+    $t_vtodo->setProperty( 'LAST-MODIFIED', local_timestamp_2_UTCdate( $t_last_updated ));
+# if mantis due is not set and eta is set, create an iCal DUE date property, based on dtstart (above)
+  if( empty( $t_due ) && ! empty( $t_eta )) {
+     switch( $t_eta ) {
+      case 10:
+        $t_eta = '';
+        break;
+      case 20:
+        $t_eta ='+ 1 day';
+        break;
+      case 30:
+        $t_eta ='+ 3 days';
+        break;
+      case 40:
+        $t_eta ='+ 7 days';
+        break;
+      case 50:
+        $t_eta ='+ 1 month';
+        break;
+      case 60:
+        $t_eta ='+ 2 month';
+        break;
+      default:
+        $t_eta ='+ 10 years'; // :)
+        break;
+    }
+    if( ! empty( $t_eta ))
+      $t_vtodo->setProperty( 'DUE', local_timestamp_2_UTCdate( $t_dtstart, $t_eta ));
+  } // end if( empty( $t_due ))
 # assure iCal ORGANIZER is set
   if( empty( $t_organizer ))
     $t_vtodo->setProperty( 'ORGANIZER', user_get_email( $t_user_id ));
@@ -273,29 +312,29 @@ foreach( $t_result as $t_bug ) {
   if( empty( $t_summary ))
     $t_vtodo->setProperty( 'SUMMARY', '' );
 # concatenate 'all' mantis bug report properties into one iCal DESCRIPTION (with iCal row breaks)
-  $t_descr       = '';
+  $t_descr     = '';
   foreach( $t_descrArr as $t_key => $t_value ) {
     if( empty( $t_value ))
       continue;
-    $t_value   = str_replace( "\n", $_iCal_inl_eol, rtrim( $t_value ));
-    $t_descr  .= str_pad( $t_key, $t_descrArr_kw ).' : '.$t_value.$_iCal_inl_eol;
+    $t_value   = str_replace( $t_std_eol, $t_iCal_inl_eol, rtrim( $t_value ));
+    $t_descr  .= str_pad( $t_key, $t_descrArr_kw ).' : '.$t_value.$t_iCal_inl_eol;
   } // end foreach( $t_descrArr as $t_key => $t_value )
   if( ! empty( $t_descr ))
-    $t_vtodo->setProperty( 'description', substr( $t_descr, 0, -3 ));
+    $t_vtodo->setProperty( 'description', substr( $t_descr, 0, ( 0 - strlen( $t_iCal_inl_eol ))));
 # export each mantis bug report bugnote to an iCal COMMENT
   $t_bugnotes  = bugnote_get_all_visible_bugnotes( $t_bug->id, $t_bugnote_order, 0, $t_user_id );
   foreach( $t_bugnotes as $t_bugnote ) {
     if( BUGNOTE == $t_bugnote->note_type )
       $t_vtodo->setProperty( 'COMMENT', user_get_name( $t_bugnote->reporter_id )
                                       . ' ('. date( $t_normal_date_format, $t_bugnote->date_submitted ) . ')'
-                                      . ' [' . $t_bugnote->id . '] :' . $_iCal_inl_eol
-                                      . str_replace( "\n", $_iCal_inl_eol, rtrim( $t_bugnote->note )));
+                                      . ' [' . $t_bugnote->id . '] :' . $t_iCal_inl_eol
+                                      . str_replace( $t_std_eol, $t_iCal_inl_eol, rtrim( $t_bugnote->note )));
   } // end foreach( $t_bugnotes as $t_bugnote )
 # export each mantis bug report tag to an (additional) iCal CATEGORIES
   if ( $t_show_tags ) {
-  	$t_tags    = tag_bug_get_attached( $p_bug_id );
+  	$t_tags    = tag_bug_get_attached( $t_bug->id );
     foreach( $t_tags as $t_tag )
-      $t_vtodo->setProperty( 'CATEGORIES', $p_tag['name'] );
+      $t_vtodo->setProperty( 'CATEGORIES', $t_tag['name'] );
   }
 # export each mantis bug report attachment to an iCal ATTACH (link)
   $t_attachments = file_get_visible_attachments( $t_bug->id );
@@ -307,3 +346,35 @@ foreach( $t_result as $t_bug ) {
 $t_calendar->sort();
 $t_calendar->returnCalendar();
 exit();
+# get bug update sequence number
+function bug_get_update_sequence( $p_bug_id ) {
+  $t_table    = db_prepare_string( plugin_table( 'bug_update_sequence' ));
+  $t_query    =  "SELECT * FROM $t_table WHERE id=" .  db_param();
+  $t_result   = db_query_bound( $t_query, Array( $p_bug_id ));
+  $t_rows     = db_num_rows( $t_result );
+  if( empty( $t_rows ))
+    return 1;
+  else {
+    $row = db_fetch_array( $t_result );
+    return (int) $row['sequence'];
+  }
+}
+# format iCal dates with UTC timezone
+function local_timestamp_2_UTCdate( $p_value=null, $p_modify=FALSE ) {
+  global $g_default_timezone;
+  if( empty( $p_value ))
+    $p_value     = time();
+  $t_fmt         = 'Ymd\THis';
+  try {
+    $t_date = new DateTime( date( $t_fmt, $p_value ), new DateTimeZone( $g_default_timezone ));
+    if( $p_modify )
+      $t_date->modify( $p_modify );
+    $t_date->setTimezone( new DateTimeZone( 'UTC' ));       // set UTC timezone
+    return $t_date->format( $t_fmt.'Z' );
+  }
+  catch( Exception $e ) {
+    if( $p_modify )
+      $p_value   = strtotime( date( $t_fmt, $p_value ) . ' ' . $p_modify );
+    return date( $t_fmt, $p_value );                        // 'float' (local) timezone
+  }
+}

@@ -1,22 +1,20 @@
 <?php
-/** MantisBT - a php based bugtracking system
+/**
+ * Copyright (C) 2013 Kjell-Inge Gustafsson, kigkonsult, All rights reserved <ical@kigkonsult.se>
  *
- * Copyright (C) 2002 - 2013  MantisBT Team - mantisbt-dev@lists.sourceforge.net
- *
- * MantisBT is free software: you can redistribute it and/or modify
+ * iCalExport is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
- * MantisBT is distributed in the hope that it will be useful,
+ * iCalExport is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MantisBT.  If not, see <http://www.gnu.org/licenses/>.
+ * along with iCalExport.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 /** Swedish (svenska)
  *
  *
@@ -28,17 +26,12 @@
  *
  * @author Kjell-Inge Gustafsson
  */
-
 $s_plugin_iCalExport_title         = 'Export till kalender';
 $s_plugin_iCalExport_description   = 'Lägger till möjligheten att exportera ärenden till kalender från MantisBT.<br>'
                                    . 'Exporterar ärenden som kalenderuppgifter (dvs TODOs)<br>'
                                    . 'för import till publika kalendrar (ex. Google)<br>'
                                    . 'eller till en privat kalender in en PC, pad or smartphone';
-
 $s_plugin_iCalExport_export_name   = 'Kalender-export';
 $s_plugin_iCalExport_export_title  = 'Exportera ärenden som kalenderuppgifter (dvs TODOs)';
-
-$s_plugin_iCalExport_error_no_iCal = 'kan inte hitta filen med iCalcreator-klassen';
-
 $s_plugin_iCalExport_x_wr_calname  = ' utvalda uppgifter';
 $s_plugin_iCalExport_x_wr_caldesc  = ' utvalda uppgifter i ';

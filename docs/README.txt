@@ -2,9 +2,9 @@ iCalExport: Mantis iCal Export Plugin
 =====================================
 Copyright (C) 2013 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
 license    GNU General Public License (GPL)
-http://kigkonsult.se/iCalExport/
+link       http://kigkonsult.se/iCalExport/
 author     Kjell-Inge Gustafsson, kigkonsult
-iCalExport 1.0 - 2013-11-02
+iCalExport 1.05 - 2013-11-09
 
 The iCalExport Plugin adds calendar export capabilities to MantisBT.
 
@@ -26,9 +26,9 @@ download from http://kigkonsult.se/downloads/dl.php?f=rfc5546.
 The plugin uses the iCalcreator class, included (license LGPL), for the iCal
 PHP 'hard stuff', more iCalcreator info at http://kigkonsult.se/iCalcreator/.
 
-Perform a database backup before installing the plugin! When installing the
-plugin, a new property is added to the MantisBT bug report table, used as a bug
-report update counter. The property is removed when the plugin is uninstalled.
+Perform a database backup before installing the plugin! The plugin will create
+a new table in parallel to the MantisBT bug report table, used as a bug report
+update counter. The table is removed when the plugin is uninstalled.
 
 REQUIREMENTS:
 -------------
@@ -45,7 +45,7 @@ DESCRIPTION:
 The iCal media file with vcalendar and vtodo components are built as follows;
 
 First, a <site/system unique id> is set, based on the MantisBT 'host' part
-config from "config_get( 'path' )".
+config from "config_get( 'path' )" and used in each TODO component, below.
 
 METHOD
  value 'PUBLISH'
@@ -70,27 +70,29 @@ UID *
 DTSTAMP *
  component timestamp (create) date, automatically created by iCalcreator.
  The date timezone is 'UTC'.
+DTSTART *
+ from MantisBT bug report property 'date_submitted'.
+ The date timezone is 'UTC'.
 SEQUENCE *
-  from the iCalExport plugin added property, a counter for bug report
-  modifications.
+  from the iCalExport plugin added counter for bug report modifications.
 SUMMARY *
  from MantisBT bug report property 'summary', if missing, empty.
+PRIORITY *
+ from MantisBT bug report property 'priority', if missing, a 'no priority'-
+ value is set
+ORGANIZER *
+ the handler email, using MantisBT bug report property 'handler_id'. If
+ missing, calendar export user email is set.
 URL
  a link back to the MantisBT bug report
 CONTACT
  the reporter email, using MantisBT bug report property 'reporter_id'
-ORGANIZER *
- the handler email, using MantisBT bug report property 'handler_id'. If
- missing, calendar export user email is set.
-DTSTART *
- from MantisBT bug report property 'date_submitted'.
- The date timezone is 'UTC'.
 CREATED
  from MantisBT bug report property 'date_submitted'.
  The date timezone is 'UTC'.
 LAST-MODIFIED
- from MantisBT bug report property 'last_updated'.
- The date timezone is 'UTC'.
+ from MantisBT bug report property 'last_updated' (if not equal to
+ 'date_submitted').  The date timezone is 'UTC'.
 DUE
  from MantisBT bug report property 'due_date', if set.
  If 'due_date' is missing, a DUE date property is created,
@@ -101,13 +103,12 @@ CATEGORIES
  from MantisBT bug report property 'category',
  each MantisBT bug report 'tag' creates (additional) CATEGORIES
  (iCal CATEGORIES may ocurr multiple times)
-PRIORITY *
- from MantisBT bug report property 'priority', if missing, a 'no priority'-
- value is set
-STATUS
+CLASS
  from MantisBT bug report property 'view_state'
+STATUS
+ from MantisBT bug report property 'resolution'
 DESCRIPTION
- concatenation of 'all' non-empty MantisBT bug report (expanded) properties
+ a concatenation of 'all' non-empty MantisBT bug report (expanded) properties
  into one iCal DESCRIPTION (formatted and with iCal row breaks) in the
  following order:
  project, id, summary, reporter, handler, category, priority, severity,
