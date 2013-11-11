@@ -96,9 +96,4 @@ class iCalExportPlugin extends MantisPlugin {
     }
     return $p_bug_data;
   }
-  public function uninstall() {
-    $t_query = 'DROP TABLE ' . db_prepare_string( plugin_table( 'bug_update_sequence' ));
-    db_query( $t_query);
-    return TRUE;
-  }
 }
