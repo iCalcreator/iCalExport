@@ -2,9 +2,9 @@ iCalExport: Mantis iCal Export Plugin
 =====================================
 Copyright (C) 2013 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
 license    GNU General Public License (GPL)
-link       http://kigkonsult.se/iCalExport/
+link       http://github.com/iCalcreator/iCalExport
 author     Kjell-Inge Gustafsson, kigkonsult
-iCalExport 1.05 - 2013-11-09
+iCalExport 1.06 - 2013-11-14
 
 The iCalExport Plugin adds calendar export capabilities to MantisBT.
 
@@ -28,7 +28,7 @@ PHP 'hard stuff', more iCalcreator info at http://kigkonsult.se/iCalcreator/.
 
 Perform a database backup before installing the plugin! The plugin will create
 a new table in parallel to the MantisBT bug report table, used as a bug report
-update counter. The table is removed when the plugin is uninstalled.
+update counter.
 
 REQUIREMENTS:
 -------------
@@ -125,7 +125,8 @@ ATTACH
 
 SUPPORT:
 --------
-- support                              : http://kigkonsult.se/support/
-- iCal documentation                   : kigkonsult.se/resources/
+- iCalExport support/issues            : http://github.com/iCalcreator/iCalExport/issues
+- iCal support                         : http://kigkonsult.se/support/
+- iCal documentation                   : http://kigkonsult.se/resources/
 - iCalExport language updates, queries, improvement/development issues or
   professional support and development : http://kigkonsult.se/contact/
