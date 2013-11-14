@@ -125,8 +125,15 @@ ATTACH
 
 SUPPORT:
 --------
-- iCalExport support/issues            : http://github.com/iCalcreator/iCalExport/issues
-- iCal support                         : http://kigkonsult.se/support/
-- iCal documentation                   : http://kigkonsult.se/resources/
-- iCalExport language updates, queries, improvement/development issues or
-  professional support and development : http://kigkonsult.se/contact/
+* iCalExport support/issues
+  http://github.com/iCalcreator/iCalExport/issues
+
+* iCal support
+  http://kigkonsult.se/support/index.php
+
+* iCal documentation
+  http://kigkonsult.se/resources/index.php
+
+* iCalExport language updates, queries, improvement/development issues
+  or professional support and development
+  http://kigkonsult.se/contact/
