@@ -41,7 +41,7 @@ class iCalExportPlugin extends MantisPlugin {
 
 		$this->version     = '1.0rc1';
 		$this->requires    = array(
-			'MantisCore'     => '1.2.0',
+			'MantisCore'     => '1.3.0',
 		);
 
 		$this->author      = 'Kjell-Inge Gustafsson';

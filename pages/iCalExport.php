@@ -28,12 +28,12 @@
  */
 /* MantisBT Core API's */
 require_once( 'core.php' );
-require_once( 'user_api.php' );
-require_once( 'columns_api.php' );
-require_once( 'file_api.php' );
-require_once( 'bugnote_api.php' );
-require_once( 'tag_api.php' );
-require_once( 'gpc_api.php' );
+require_api( 'user_api.php' );
+require_api( 'columns_api.php' );
+require_api( 'file_api.php' );
+require_api( 'bugnote_api.php' );
+require_api( 'tag_api.php' );
+require_api( 'gpc_api.php' );
 auth_ensure_user_authenticated();
 helper_begin_long_process();
 ob_clean();
@@ -45,7 +45,7 @@ $t_normal_date_format = config_get( 'normal_date_format' );
 $f_bug_id        = gpc_get_int( 'id', 0 );
 if( ! empty( $f_bug_id )) {
 # Get bug row according to parameter id
-  require_once( 'bug_api.php' );
+  require_api( 'bug_api.php' );
 	bug_ensure_exists( $f_bug_id );
   $t_result      = bug_get( $f_bug_id, true );
   if(( $t_result === false ) || empty( $t_result )) {
