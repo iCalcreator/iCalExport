@@ -83,16 +83,16 @@ class iCalExportPlugin extends MantisPlugin {
   public function bug_update_sequence( $p_event, $p_bug_data, $p_bug_id ) {
     $t_table      = db_prepare_string( plugin_table( 'bug_update_sequence' ));
     $t_query      =  'SELECT * FROM ' . $t_table . ' WHERE id=' .  db_param();
-    $t_result     = db_query_bound( $t_query, Array( $p_bug_id ));
+    $t_result     = db_query_bound( $t_query, array( $p_bug_id->bug_text_id ));
     $t_rows       = db_num_rows( $t_result );
     if( empty( $t_rows )) {
       $t_query    =  'INSERT INTO ' . $t_table . ' VALUES (' . db_param() . ', ' . db_param() . ')';
-      $t_result   = db_query_bound( $t_query, Array( $p_bug_id, 2 ));
+      $t_result   = db_query_bound( $t_query, array( $p_bug_id->bug_text_id, 2 ));
     }
     else {
       $t_sequence = db_prepare_string( 'sequence' );
       $t_query    =  'UPDATE ' . $t_table . ' SET ' . $t_sequence . '=' . $t_sequence . '+1' . ' WHERE id=' .  db_param();
-      $t_result   = db_query_bound( $t_query, Array( $p_bug_id ));
+      $t_result   = db_query_bound( $t_query, array( $p_bug_id->bug_text_id ));
     }
     return $p_bug_data;
   }
