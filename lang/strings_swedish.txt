@@ -1,19 +1,35 @@
 <?php
 /**
- * Copyright (C) 2013 Kjell-Inge Gustafsson, kigkonsult, All rights reserved <ical@kigkonsult.se>
+ * IcalExport, Mantis calendar Export Plugin
  *
- * iCalExport is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
+ * Adapted for iCalcreator >= 6.27.16
  *
- * iCalExport is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * @package    MantisPlugin
+ * @subpackage IcalExport
+ * @copyright  Copyright (C) 2013-2019 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
+ * @link       http://kigkonsult.se/IcalExport
+ * @license    Subject matter of licence is the software IcalExport.
+ *             The above copyright, link, package and version notices,
+ *             this licence notice shall be included in all copies or
+ *             substantial portions of the IcalExport.
  *
- * You should have received a copy of the GNU General Public License
- * along with iCalExport.  If not, see <http://www.gnu.org/licenses/>.
+ *             IcalExport is free software: you can redistribute it and/or modify
+ *             it under the terms of the GNU Lesser General Public License as published
+ *             by the Free Software Foundation, either version 3 of the License,
+ *             or (at your option) any later version.
+ *
+ *             IcalExport is distributed in the hope that it will be useful,
+ *             but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *             MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *             GNU Lesser General Public License for more details.
+ *
+ *             You should have received a copy of the GNU Lesser General Public License
+ *             along with iCalcreator. If not, see <https://www.gnu.org/licenses/>.
+ * @author     Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+ * @version    2.0
+ * @since      2.0 - 2019-03-25
+ *
+ * This file is a part of IcalExport.
  */
 /** Swedish (svenska)
  *
@@ -26,12 +42,16 @@
  *
  * @author Kjell-Inge Gustafsson
  */
-$s_plugin_iCalExport_title         = 'Export till kalender';
-$s_plugin_iCalExport_description   = 'Lägger till möjligheten att exportera ärenden till kalender från MantisBT.<br>'
+$s_plugin_IcalExport_title         = 'Export till kalender';
+$s_plugin_IcalExport_description   = 'Lägger till möjligheten att exportera ärenden till kalender från MantisBT.<br>'
                                    . 'Exporterar ärenden som kalenderuppgifter (dvs TODOs)<br>'
                                    . 'för import till publika kalendrar (ex. Google)<br>'
                                    . 'eller till en privat kalender in en PC, pad or smartphone';
-$s_plugin_iCalExport_export_name   = 'Kalender-export';
-$s_plugin_iCalExport_export_title  = 'Exportera ärenden som kalenderuppgifter (dvs TODOs)';
-$s_plugin_iCalExport_x_wr_calname  = ' utvalda uppgifter';
-$s_plugin_iCalExport_x_wr_caldesc  = ' utvalda uppgifter i ';
+$s_plugin_IcalExport_export_name   = 'Kalender-export';
+$s_plugin_IcalExport_export_title1 = 'Exportera ärende som kalenderuppgift (dvs TODO)';
+$s_plugin_IcalExport_export_title2 = 'Exportera all ärenden som kalenderuppgifter (dvs TODOs)';
+$s_plugin_IcalExport_x_wr_calname1 = 'Ärende id ';
+$s_plugin_IcalExport_x_wr_calname2 = 'Utvalda ärenden';
+$s_plugin_IcalExport_x_wr_caldesc1 = ' selected issue id ';
+$s_plugin_IcalExport_x_wr_caldesc2 = ' selected issues at ';
+
