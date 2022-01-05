@@ -1,0 +1,3 @@
+
+2.2 PHP 7.0, adapt for iCalcreator 2.39
+    upd timezone mgmnt

@@ -2,71 +2,55 @@
 IcalExport: Mantis iCal Export Plugin
 =====================================
 
-Copyright (C) 2013-2019 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
-author     Kjell-Inge Gustafsson, kigkonsult
-link       http://github.com/iCalcreator/IcalExport
+Copyright (C) 2013-2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
 license    GNU Lesser General Public License
-IcalExport 2.0 - 2019-03-25
-
+link       http://github.com/iCalcreator/IcalExport
+author     Kjell-Inge Gustafsson, kigkonsult
 
 The IcalExport Plugin adds calendar export capabilities to MantisBT.
 
 
-Export selected [MantisBT] issues
-as iCal ([rfc2445]/[rfc5545]) calendar tasks (i.e. TODOs)
-in a iCal media file (extension .ics)
-for import into
-- public calendars
-- business/organization calendars
-- private calendars in a PC, pad or smartphone
-- etc
+PREFACE:
+---------
+Export selected MantisBT issues as calendar tasks (i.e. TODOs) in a iCal
+media file (extension .ics) for import to a public calendar (ex. Google)
+or a private calendar in a PC, pad or smartphone.
 
-The IcalExport plugin adds buttons for calendar export in the 'View issues'
-and 'view' (issue) pages.
+The IcalExport adds buttons for calendar export in the 'View issues' and
+'view' (issue) pages.
 
-
-You will find an iCal summary as http://en.wikipedia.org/wiki/ICalendar.
 The iCal standards are rfc5545/rfc5546 (obsoletes rfc2445/rfc2446):
 rfc5545
 'Internet Calendaring and Scheduling Core Object Specification',
-download from https://tools.ietf.org/html/rfc5545rfc5545,
+download from http://kigkonsult.se/downloads/dl.php?f=rfc5545,
 rfc5546
 'iCalendar Transport-Independent Interoperability Protocol (iTIP)
 Scheduling Events, BusyTime, To-dos and Journal Entries',
-download from https://tools.ietf.org/html/rfc5545rfc5546.
+download from http://kigkonsult.se/downloads/dl.php?f=rfc5546.
 
-
-You can found the previous version (1.06) on github as tab, 1.06.
+The plugin require the iCalcreator class package (version >=2.39), (not
+included).
 
 
 REQUIREMENTS:
 -------------
-Made for and tested with
-- PHP >= 5.6
-- MantisBT version 2.20.0
-- iCalcreator (version >=2.27.16!), not included
+Made for and tested against PHP 7.0 and MantisBT version 2.25.2.
+
+Download iCalcreator from https://github.com/iCalcreator/iCalcreator/
+and place in 'api/' folder (i.e. 'api/iCalcreator/').
 
 
 INSTALLATION:
 -------------
-
-Unstall any previous version of IcalExport.
-
 Download and extract the IcalExport plugin in the 'plugins' directory,
 sub-directory 'IcalExport'.
 
-Download iCalcreator from  https://github.com/iCalcreator/iCalcreator/ and
-extract into the 'api' folder. Access to the 'api/iCalcreator/autoload.php'
-is required.
-
+Download and place iCalcreator (version >=2.39) in the 'api' folder,
+access to 'api/iCalcreator/autoload.php' is required.
 
 In 'Manage' and 'Manage Plugins', you should find and install 'IcalExport'.
 
 There is no configuration.
-
-
-Calendars (and Vtodos) produced with previous version of IcalExport do not
-correlate with Calendars (and Vtodos) produced with this version of IcalExport.
 
 
 DESCRIPTION:

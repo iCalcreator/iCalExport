@@ -2,11 +2,11 @@
 /**
  * IcalExport, Mantis calendar Export Plugin
  *
- * Adapted for iCalcreator >= 6.27.16
+ * Adapted for iCalcreator >= 2.39
  *
  * @package    MantisPlugin
  * @subpackage IcalExport
- * @copyright  Copyright (C) 2013-2019 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
+ * @copyright  Copyright (C) 2013-2022 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
  * @link       http://kigkonsult.se/IcalExport
  * @license    Subject matter of licence is the software IcalExport.
  *             The above copyright, link, package and version notices,
@@ -26,81 +26,67 @@
  *             You should have received a copy of the GNU Lesser General Public License
  *             along with iCalcreator. If not, see <https://www.gnu.org/licenses/>.
  * @author     Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
- * @version    2.0
- * @since      2.0 - 2019-03-25
+ * @since      2.2 - 2022-01-02
  *
  * This file is a part of IcalExport.
  */
 
 use Kigkonsult\Icalcreator\Vcalendar;
 use Kigkonsult\Icalcreator\Vtodo;
+use Kigkonsult\Icalcreator\Util\DateTimeZoneFactory;
 
 class CalendarLoader
 {
     /**
      * @var Vcalendar
-     * @access private
      */
-    private $calendar =  null;
+    private $calendar;
 
     /**
      * @var string
-     * @access private
      */
-    private $unique_id = null;
-
-    /**
-     * @var string
-     * @access private
-     */
-    private $normalDateFormat = null;
+    private $unique_id;
 
     /**
      * @var Vtodo
-     * @access private
      */
-    private $vtodo = null;
+    private $vtodo;
 
     /**
      * @var string
-     * @access private
      */
-    private $vtodoPartStat = null;
+    private $vtodoPartStat = '';
 
     /**
-     * @var string
-     * @access private
+     * @var array
      */
-    private $vtodoPriority = null;
+    private $vtodoPriority;
 
     /**
-     * @var string
-     * @access private
+     * @var array
      */
-    private $vtodoReproducibility = null;
+    private $vtodoReproducibility;
 
     /**
-     * @var string
-     * @access private
+     * @var array
      */
-    private $vtodoResolution = null;
+    private $vtodoResolution;
 
     /**
-     * @var string
-     * @access private
+     * @var array
      */
-    private $vtodoSeverity = null;
+    private $vtodoSeverity;
 
     /**
-     * @var string
-     * @access private
+     * @var array
      */
-    private $vtodoStatus = null;
+    private $vtodoStatus;
 
     /*
-     * @var string[]  mantis bug properties as keys in an iCal DESCRIPTION property
-     * @access private
-     * @static
+     * @var string[]  mantis BugData properties
+     *
+     * Uppate iCal Vtodo properties
+     * used as keys in an iCal Vtodo DESCRIPTION property
      */
     private static $descriptionKeys = [
         'project',
@@ -115,7 +101,7 @@ class CalendarLoader
         'status',
         'resolution',
         'projection',
-        'eta',
+        'eta',                      // if enabled in config
         'view_state',
         'description',
         'steps_to_reproduce',
@@ -134,164 +120,213 @@ class CalendarLoader
         'target_version',
     ];
 
-    /*
-     * @var int  length for the longest $descriptionKeys
-     * @access private
-     * @static
-     */
-    private static $descriptionArrKeylength = 22;
-
     /**
      * @var string[]
-     * @access private
      */
     private $vtodoDescriptionsArr = [];
 
     /**
      * @var string[]
-     * @access private
      */
     private $vtodoAttendeesArr = [];
 
     /**
+     * @var string
+     */
+    private $vtodoDelegatedFrom = '';
+
+    /**
      * @var string  iCal text inline end-of-line characters
-     * @access private
      */
-    private static $INLINE_EOL = '\n';
+    private static $ICAL_EOL = '\n';
 
     /**
-     * @var string  common end-of-line characters
-     * @access private
-     */
-    static $STD_EOL = ["\r\n", "\n\r", "\n", "\r"];
-
-    /**
-     * CalendarLoader constructor.
+     * CalendarLoader factory
      *
      * @param string $unique_id
-     * @param string $normalDateFormat
-     * @param string $userName
-     * @param string $calendarName
-     * @param string $calendarDesc
+     * @return static
      */
-    public function __construct( $unique_id, $normalDateFormat, $userName, $calendarName, $calendarDesc ) {
-        static $FMTX_WR_CALDESC = '%s%s %s (%s)';
-        $this->unique_id        = $unique_id;
-        $this->normalDateFormat = $normalDateFormat;
-        $this->calendar = new Vcalendar( [ Vcalendar::UNIQUE_ID => $unique_id ] );
+    public static function factory( string $unique_id ) : self
+    {
+        $instance            = new self();
+        $instance->unique_id = $unique_id;
+        $instance->calendar  = new Vcalendar( [ Vcalendar::UNIQUE_ID => $unique_id ] );
         /*
          * this iCal vtodo calendar is simply a 'posting' one,
          * NO 'request' vtodo calendar (i.e. issues are already assigned)
          */
-        $this->calendar->setMethod( Vcalendar::PUBLISH );
-        /*
-         * Set some optional iCal calendar properties,
-         * 'required' by some calendar software
-         */
-        $this->calendar->setXprop(
-            Vcalendar::X_WR_CALNAME,
-            ucfirst( strtolower( $calendarName ))
-        );
-        $this->calendar->setXprop(
-            Vcalendar::X_WR_CALDESC,
-            sprintf(
-                $FMTX_WR_CALDESC,
-                $userName,
-                $calendarDesc,
-                $this->unique_id,
-                date( $this->normalDateFormat )
-            )
-        );
-        /*
-         * Set timezone
-         */
-        $this->calendar->setXprop( Vcalendar::X_WR_TIMEZONE, Vcalendar::UTC );
-        $this->calendar->newVtimezone()->setTzid( Vcalendar::UTC );
+        $instance->calendar->setMethod( Vcalendar::PUBLISH );
+        return $instance;
     }
 
     /**
-     * CalendarLoader create and return calendar
+     * Set (optional) NAME/WR_CALNAME iCal calendar property, WR_CALNAME 'required' by some calendar software
+     *
+     * @param string $name
+     * @return static
      */
-    public function returnCalendar() {
-        $this->calendar->sort();
-        $this->calendar->returnCalendar();
+    public function setCalendarName( string $name ) : self
+    {
+        $name = ucfirst( strtolower( $name ));
+        $this->calendar->setName( $name );
+        $this->calendar->setXprop( Vcalendar::X_WR_CALNAME, $name );
+        return $this;
+    }
+
+    /**
+     * Set (optional) description/WR-CALDESC iCal calendar property, WR-CALDESC 'required' by some calendar software
+     *
+     * @param string $userName
+     * @param string $calDesc
+     * @param string $dateFmt
+     * @return static
+     */
+    public function setCalendarDescription( string $userName, string $calDesc, string $dateFmt ) : self
+    {
+        static $FMTX_WR_CALDESC = '%s%s %s (%s)';
+        $desc = sprintf( $FMTX_WR_CALDESC, $userName, $calDesc, $this->unique_id, date( $dateFmt ));
+        $this->calendar->setDescription( $desc );
+        $this->calendar->setXprop( Vcalendar::X_WR_CALDESC, $desc );
+        return $this;
     }
 
     /*
-     * Initiate a new vtodo calendar component
+     * Set timezone
      *
-     * @param int    $timestampSubmitted
-     * @param string $url
-     * @param string $bugId
-     * @param int    $sequenceNo
-     * @param string $userEmail
+     * @param string $timeZone
+     * @return static
      */
-    public function initNewVtodo( $timestampSubmitted, $url, $bugId, $sequenceNo, $userEmail ) {
+    public function setCalendarXpropTimezone( string $timeZone ) : self
+    {
+        $this->calendar->setXprop( Vcalendar::X_WR_TIMEZONE, $timeZone );
+        return $this;
+    }
 
+    /**
+     * Set calenadr url (NO source and refresh-interval due to No calendar GET rest-api)
+     *
+     * @param string $url
+     * @return static
+     */
+    public function setCalendarurl( string $url ) : self
+    {
+        $this->calendar->setUrl( $url );
+        return $this;
+    }
+
+    /**
+     * CalendarLoader create and return to browser calendar (with Vtimezone component) file
+     *
+     * @return string
+     */
+    public function returnCalendar() : string
+    {
+        $timezone = $this->calendar->getXprop( Vcalendar::X_WR_TIMEZONE )[1];
+        if( DateTimeZoneFactory::isUTCtimeZone( $timezone )) {
+            $this->calendar->newVtimezone()->setTimezone( $timezone );
+        }
+        else {
+            $this->calendar->vtimezonePopulate( $timezone );
+        }
+        $this->calendar->sort();
+        return $this->calendar->returnCalendar();
+    }
+
+    /**
+     * Initiate a new calendar Vtodo component
+     *
+     * @param int $timestamp
+     * @param int $bugId
+     * @return static
+     * @throws Exception
+     */
+    public function initNewVtodo( int $timestamp, int $bugId ) : self
+    {
+        static $SP0 = '';
+        static $NEW_ = 'NEW_';
+        static $NONE = 'NONE';
         $this->vtodo = $this->calendar->newVtodo();
 
         /*
          * set iCal component UID property, Universal IDentifier
          */
-        $this->vtodo->setUid( self::renderUID( $timestampSubmitted, $bugId, $this->unique_id ));
+        $this->vtodo->setUid( self::renderUID( $timestamp, $bugId, $this->unique_id ));
 
         /*
-         * Init arrays/string for (later) property update
+         * Init for (later) property update
          *
          */
-        $this->vtodoDescriptionsArr = [];
         foreach( self::$descriptionKeys as $key ) {
-            $this->vtodoDescriptionsArr[$key] = null;
+            $this->vtodoDescriptionsArr[$key] = $SP0;
         }
-        $this->vtodoAttendeesArr    = [];
-        $this->vtodoDelegatedFrom   = null;
-        $this->vtodoPartStat        = null;
-        $this->vtodoResolution      = null;
-        $this->vtodoReproducibility = null;
-        $this->vtodoSeverity        = null;
 
         /*
-         * Set created
+         * assure iCal Vtodo PRIORITY/STATUS/SUMMARY are set
          */
-        $this->vtodo->setCreated( self::renderDate( $timestampSubmitted ));
+        $this->vtodoPriority = [ 0, $NONE ];
+        $this->vtodoStatus   = [ Vcalendar::NEEDS_ACTION, $NEW_ ];
+        $this->vtodo->setSummary( $SP0 );
 
-        /*
-         * Set iCal component URL property,
-         * a link back to the mantis bug report view page
-         */
+        return $this;
+    }
+
+    /**
+     * Set created (UTC)
+     *
+     * @param int $timestamp
+     * @return static
+     * @throws Exception
+     */
+    public function setVtodoCreated( int $timestamp ) : self
+    {
+        $this->vtodo->setCreated( self::timestampToDateTime( $timestamp ));
+        return $this;
+    }
+
+    /**
+     * Set iCal component URL property, a link back to the mantis bug report view page
+     *
+     * @param string $url
+     * @param int    $bugId
+     * @return static
+     */
+    public function setVtodoUrl( string $url, int $bugId ) : self
+    {
         $this->vtodo->setUrl( self::renderURL( $url, $bugId ));
+        return $this;
+    }
 
-        /*
-         * Set sequence (= update number)
-         */
-        $this->vtodo->setSequence( $sequenceNo );
-
-        /*
-         * assure any iCal ORGANIZER is set
-         */
-        $this->vtodo->setOrganizer( $userEmail );
-
-        /*
-         * assure any iCal PRIORITY is set
-         */
-        $this->vtodoPriority = [ 0, 'NONE' ];
-
-        /*
-         * assure any iCal Status is set
-         */
-        $this->vtodoStatus = [ Vcalendar::NEEDS_ACTION, 'NEW_' ];
-
-        /*
-         * assure any iCal SUMMARY is set
-         */
-        $this->vtodo->setSummary( '' );
+    /**
+     * Set sequence (= update number)
+     *
+     * @param int $sequeceNo
+     * @return static
+     */
+    public function setVtodoSequenceNo( int $sequeceNo ) : self
+    {
+        $this->vtodo->setSequence( $sequeceNo );
+        return $this;
     }
 
     /*
-     * Close off the vtodo calendar component
+     * Set iCal Vtodo ORGANIZER (bug assigned to)
+     *
+     * @param string $email
+     * @return static
      */
-    public function closeVtodo() {
+    public function setVtodOrganizer( string $email ) : self
+    {
+        $this->vtodo->setOrganizer( $email );
+        return $this;
+    }
 
+    /**
+     * Close off the vtodo calendar component
+     *
+     * @return void
+     */
+    public function closeVtodo()
+    {
         /*
          * Combine mantis priority and severity into Vtodo PRIORITY
          */
@@ -305,7 +340,7 @@ class CalendarLoader
             list( $xKey, $xValue ) = $this->vtodoReproducibility;
             $parameters[$xKey] = $xValue;
         }
-        $this->vtodo->setPriority( $value, self::getXprefixedParameters( $parameters ) );
+        $this->vtodo->setPriority( $value, self::xPrefixParameterKeys( $parameters ) );
 
         /*
          * Combine mantis status and resolution into Vtodo STATUS
@@ -316,77 +351,90 @@ class CalendarLoader
             list( $xKey, $xValue ) = $this->vtodoResolution;
             $parameters[$xKey] = $xValue;
         }
-        $this->vtodo->setStatus( $value, self::getXprefixedParameters( $parameters ) );
+        $this->vtodo->setStatus( $value, self::xPrefixParameterKeys( $parameters ) );
 
         /*
          * Concatenate 'all' collected mantis bug report properties
          * into one iCal DESCRIPTION (with iCal row breaks)
          */
-        $this->setDescription();
+        $this->setVtodoDescription();
 
         /*
          * Update the vtodo with collected attendees
          */
-        $this->setAttendees();
+        $this->setVtodoAttendees();
     }
 
-    /*
+    /**
      * Set Vtodo Attach
      *
      * @param array  $attachments
      * @param string $url
+     * @return void
      */
-    public function setAttachments( array $attachments, $url ) {
+    public function setVtodoAttachments( array $attachments, string $url )
+    {
+        static $BUGNOTEID   = 'bugnote_id';
+        static $XBUGNOTEID  = 'x-bugnote_id';
         static $CANDOWNLOAD = 'can_download';
         static $EXISTS      = 'exists';
         static $DOWNLOADURL = 'download_url';
+        static $ID          = 'id';
+        static $XID         = 'x-attach-id';
         foreach( $attachments as $attachment ) {
-            if( $attachment[$CANDOWNLOAD] &&
-                $attachment[$EXISTS] ) {
-                $this->vtodo->setAttach( $url . $attachment[$DOWNLOADURL] );
-            }
-        }
+            if( $attachment[$CANDOWNLOAD] && $attachment[$EXISTS] ) {
+                $parameters = [ $XID => $attachment[$ID] ];
+                if( ! empty( $attachment[$BUGNOTEID] )) {
+                    $parameters[$XBUGNOTEID] = $attachment[$BUGNOTEID];
+                }
+                $this->vtodo->setAttach( $url . $attachment[$DOWNLOADURL], $parameters );
+            } // end if
+        } // end foreach
     }
 
-    /*
-     * Collect Vtodo Attendee
+    /**
+     * Set/update Vtodo Attendee
      *
      * @param string $attendeeEmail
      * @param string $attendeeName
      * @param array  $parameters
-     * @todo duplicates
+     * @return void
      */
-    public function updateAttendee( $attendeeEmail, $attendeeName, $parameters ) {
-        $oldParameters = ( isset( $this->vtodoAttendeesArr[$attendeeEmail] )) ? $this->vtodoAttendeesArr[$attendeeEmail] : [];
+    public function updateVtodoAttendee( string $attendeeEmail, string $attendeeName, array $parameters )
+    {
+        $oldParameters = isset( $this->vtodoAttendeesArr[$attendeeEmail] )
+            ? (array) $this->vtodoAttendeesArr[$attendeeEmail]
+            : [];
         foreach( $oldParameters as $key => $value ) {
-            if(( Vcalendar::ROLE != $key ) || ( Vcalendar::CHAIR  == $value )) {
+            if(( Vcalendar::ROLE !== $key ) || ( Vcalendar::CHAIR === $value )) {
                 $parameters[$key] = $value;
             }
-        }
+        } // end foreach
         if( ! isset( $parameters[Vcalendar::ROLE] )) {
             $parameters[Vcalendar::ROLE] = Vcalendar::OPT_PARTICIPANT;
         }
         if( isset( $parameters[Vcalendar::DELEGATED_FROM] )) {
-            if( $parameters[Vcalendar::DELEGATED_FROM] != $attendeeEmail ) {
+            if( $parameters[Vcalendar::DELEGATED_FROM] !== $attendeeEmail ) {
                 $this->vtodoDelegatedFrom = $attendeeEmail;
             }
             unset( $parameters[Vcalendar::DELEGATED_FROM] );
             $parameters['x-reporter'] = Vcalendar::TRUE;
         }
-        $parameters[Vcalendar::CN]          = $attendeeName;
+        $parameters[Vcalendar::CN]        = $attendeeName;
         $this->vtodoAttendeesArr[$attendeeEmail] = $parameters;
     }
 
-    /*
+    /**
      * set Vtodo Attendees
      *
-     * @access private
+     * @return void
      */
-    private function setAttendees() {
+    private function setVtodoAttendees()
+    {
         $XROLE   = 'X-ROLE';
         $HANDLER = 'Handler';
         foreach( $this->vtodoAttendeesArr as $attendeeEmail => $parameters ) {
-            if( Vcalendar::CHAIR == $parameters[Vcalendar::ROLE] ) {
+            if( Vcalendar::CHAIR === $parameters[Vcalendar::ROLE] ) {
                 $this->vtodo->setOrganizer(
                     $attendeeEmail,
                     [
@@ -400,113 +448,117 @@ class CalendarLoader
                 if( ! empty( $this->vtodoDelegatedFrom ) ) {
                     $parameters[Vcalendar::DELEGATED_FROM] = $this->vtodoDelegatedFrom;
                 }
-            }
+            } // end if
             $this->vtodo->setAttendee( $attendeeEmail, $parameters );
-        }
+        } // end foreach
     }
 
-    /*
+    /**
      * Set Vtodo Categories
      *
      * @param string $category
-     * @param array $parameters
+     * @param null|array $parameters
+     * @return void
      */
-    public function setCategories( $category, $parameters = [] ) {
-        $this->vtodo->setCategories( $category, self::getXprefixedParameters( $parameters ));
+    public function setVtodoCategories( string $category, $parameters = [] )
+    {
+        $this->vtodo->setCategories( $category, self::xPrefixParameterKeys( $parameters ?? [] ));
     }
 
-    /*
+    /**
      * Set Vtodo Class
      *
      * @param int $classValue
+     * @return void
      */
-    public function setClass( $classValue ) {
-        switch( $classValue ) {
-            case 50:
-                $this->vtodo->setClass( Vcalendar::P_IVATE );
-                break;
-            default:
-                $this->vtodo->setClass( Vcalendar::P_BLIC );
-                break;
-        }
+    public function setVtodoClass( int $classValue ) {
+        $this->vtodo->setClass(( 50 === $classValue ) ? Vcalendar::P_IVATE : Vcalendar::P_BLIC );
     }
 
-    /*
+    /**
      * Set Vtodo Comment
      *
      * @param string $bugnote
-     * @param array  $parameters
-     * @param
+     * @param null|array $parameters
+     * @return void
      */
-    public function setComment( $bugnote, $parameters = [] ) {
+    public function setVtodoComment( string $bugnote, $parameters = [] ) {
         $this->vtodo->setComment(
-            str_replace( self::$STD_EOL, self::$INLINE_EOL, rtrim( $bugnote )),
-            self::getXprefixedParameters( $parameters )
+            self::fixIcalEol( $bugnote ),
+            self::xPrefixParameterKeys( $parameters ?? [] )
         );
     }
 
-    /*
-     * Collect data pairs for (later) uppdate of vtodo description
+    /**
+     * Collect key/value pairs for (later) UPDATE of vtodo description
      *
+     * @param string $key
+     * @param string $value
+     * @return void
      */
-    public function updateDescriptions( $key, $value ) {
+    public function updateVtodoDescriptions( string $key, string $value )
+    {
         if( array_key_exists( $key, $this->vtodoDescriptionsArr )) {
             $this->vtodoDescriptionsArr[$key] = $value;
         }
     }
 
-    /*
+    /**
      * Set Vtodo description from collection in vtodoDescriptionsArr
      *
-     * @access private
+     * @return void
      */
-    private function setDescription() {
-        static $FMT = '%s : %s%s';
+    private function setVtodoDescription()
+    {
+        static $FMT    = '%s : %s';
+        static $KEYLEN = 22;
         /*
          * concatenate 'all' mantis bug report properties
          * into one iCal DESCRIPTION (with iCal row breaks)
          */
-        $description = '';
+        $descriptionRows = [];
         foreach( $this->vtodoDescriptionsArr as $key => $value ) {
-            if( empty( $value )) {
+            if( empty( $value ) && ! is_numeric( $value )) {
                 continue;
             }
-            $value  = str_replace( self::$STD_EOL, self::$INLINE_EOL, rtrim( $value ));
-            $description .= sprintf(
-                $FMT,
-                str_pad( $key, self::$descriptionArrKeylength ),
-                $value,
-                self::$INLINE_EOL
-            );
+            $descriptionRows[] = sprintf( $FMT, str_pad( $key, $KEYLEN ), self::fixIcalEol( $value ));
         } // end foreach
-        if( ! empty( $description )) {
-            $this->vtodo->setDescription( substr( $description, 0, ( 0 - strlen( self::$INLINE_EOL ))));
+        if( ! empty( $descriptionRows )) {
+            $this->vtodo->setDescription( implode( self::$ICAL_EOL, $descriptionRows ));
         }
     }
 
-    /*
+    /**
      * Set Vtodo Dtstart
      *
-     * @param int   $startTimestamp
+     * @param int    $startTimestamp
+     * @param string $timezone
+     * @return void
+     * @throws Exception
      */
-    public function setDtstart( $startTimestamp ) {
-        $this->vtodo->setDtstart( self::renderDate( $startTimestamp ));
+    public function setVtodoDtstart( int $startTimestamp, string $timezone )
+    {
+        $this->vtodo->setDtstart( self::timestampToDateTime( $startTimestamp, $timezone ));
     }
 
-    /*
-     * Set Vtodo Due
+    /**
+     * Set Vtodo Due, opt modified with etaValue if set
      *
-     * @param int   $startTimestamp
-     * @param int   $etaValue
+     * @param int      $startTimestamp
+     * @param string   $timezone
+     * @param int|null $etaValue
+     * @return void
+     * @throws Exception
      */
-    public function setDue( $startTimestamp, $etaValue = null ) {
+    public function setVtodoDue( int $startTimestamp, string $timezone, $etaValue = 0 )
+    {
         if( empty( $etaValue )) {
             $etaValue = 0;
         }
-        $modify = null;
-        switch( $etaValue ) {
+        $modify = '';
+        switch((int) $etaValue ) {
             case 0:
-                break;
+                // fall through
             case 10:
                 break;
             case 20:
@@ -525,30 +577,43 @@ class CalendarLoader
                 $modify = '+ 2 month';
                 break;
             default:
-                $modify = '+ 10 years'; // ;)
+                $modify = '+ 10 years';
                 break;
-        }
+        } // end switch
         if( ! empty( $modify )) {
-            $this->vtodo->setDue( self::renderDate( $startTimestamp, $modify ));
+            $this->vtodo->setDue( self::timestampToDateTime( $startTimestamp, $timezone, $modify ));
         }
     }
 
-    /*
-     * Set Vtodo Last-modified
+    /**
+     * Set Vtodo Last-modified UTC, also calendar last-modified from the latest vtodo last-modified
      *
-     * @param int   $timestamp
+     * @param int $timestamp
+     * @return void
+     * @throws Exception
      */
-    public function setLastmodified( $timestamp ) {
-        $this->vtodo->setLastmodified( self::renderDate( $timestamp ));
+    public function setLastModified( int $timestamp )
+    {
+        $dateTime     = self::timestampToDateTime( $timestamp );
+        $calLastModDt = $this->calendar->getLastmodified();
+        if( false === $calLastModDt ) {
+            $this->calendar->setLastmodified( $dateTime );
+        }
+        elseif( $calLastModDt->getTimeStamp() < $timestamp ) {
+            $this->calendar->setLastmodified( $dateTime );
+        }
+        $this->vtodo->setLastmodified( $dateTime );
     }
 
-    /*
-     * Set Vtodo Priority
+    /**
+     * Set Vtodo Priority and update descriptions
      *
-     * @param int    $value
+     * @param int $value
      * @param string $valueText
+     * @return void
      */
-    public function setPriority( $value, $valueText ) {
+    public function setVtodoPriority( int $value, string $valueText )
+    {
         $priority = 0;
         switch( $value ) {
             case 60:
@@ -569,179 +634,219 @@ class CalendarLoader
             case 10:
             default:
                 break;
-        }
+        } // end switch
         $this->vtodoPriority = [ $priority, $valueText ];
-        $this->updateDescriptions( strtolower( Vcalendar::PRIORITY ), $valueText );
+        $this->updateVtodoDescriptions( strtolower( Vcalendar::PRIORITY ), $valueText );
     }
 
-    /*
+    /**
      * Set Vtodo RELATED-TO
      *
      * @param string $value
-     * @param array  $parameters
+     * @param null|array  $parameters
+     * @return void
      */
-    public function setRelatedto( $value, array $parameters ) {
-        $this->vtodo->setRelatedto( $value, $parameters );
+    public function setVtodoRelatedto( string $value, $parameters = [] )
+    {
+        $this->vtodo->setRelatedto( $value, $parameters ?? [] );
     }
 
-    /*
-     * Save bug reproducibility, will update Vtodo priority
+    /**
+     * Save bug reproducibility, will update Vtodo priority/descriptions
      *
-     * @param int    $value
      * @param string $valueText
+     * @return void
      */
-    public function setReproducibility( $value, $valueText ) {
+    public function setVtodoReproducibility( string $valueText )
+    {
         static $REPRODUCIBILITY     = 'reproducibility';
         $this->vtodoReproducibility = [ $REPRODUCIBILITY, $valueText ];
-        $this->updateDescriptions( $REPRODUCIBILITY, $valueText );
+        $this->updateVtodoDescriptions( $REPRODUCIBILITY, $valueText );
     }
 
 
-    /*
-     * Save bug resolution status, will update Vtodo Status
+    /**
+     * Save bug resolution status, will update Vtodo status/descriptions
      *
-     * @param int    $value
      * @param string $valueText
+     * @return void
      */
-    public function setResolution( $value, $valueText ) {
+    public function setVtodoResolution( string $valueText )
+    {
         static $RESOLUTION     = 'resolution';
         $this->vtodoResolution = [ $RESOLUTION, $valueText ];
-        $this->updateDescriptions( $RESOLUTION, $valueText );
+        $this->updateVtodoDescriptions( $RESOLUTION, $valueText );
     }
 
-    /*
-     * Save bug severity, will update Vtodo priority
+    /**
+     * Save bug severity, will update Vtodo priority/descriptions
      *
-     * @param int    $value
      * @param string $valueText
+     * @return void
      */
-    public function setSeverity( $value, $valueText ) {
+    public function setVtodoSeverity( string $valueText )
+    {
         static $SEVERITY     = 'severity';
         $this->vtodoSeverity = [ $SEVERITY, $valueText ];
-        $this->updateDescriptions( $SEVERITY, $valueText );
+        $this->updateVtodoDescriptions( $SEVERITY, $valueText );
     }
 
-    /*
-     * Set Vtodo Status
+    /**
+     * Set Vtodo Status/descriptions
      *
-     * @param int    $value
+     * @param int $value
      * @param string $valueText
+     * @return void
      */
-    public function setStatus( $value, $valueText ) {
+    public function setVtodoStatus( int $value, string $valueText )
+    {
         static $STATUS = 'status';
-        switch( $value ) {
-            case 10 : // NEW_
-                $status = Vcalendar::NEEDS_ACTION;
+        switch( true ) {
+            case ( 90 <= $value ) : // CLOSED
+                $status = Vcalendar::CANCELLED;
                 break;
-            case 20 : // FEEDBACK
-                $status = Vcalendar::NEEDS_ACTION;
+            case ( 80 <= $value ) : // RESOLVED
+                $status = Vcalendar::COMPLETED;
                 break;
-            case 30 : // ACKNOWLEDGED
-                $status = Vcalendar::IN_PROCESS;
-                break;
-            case 40 : // CONFIRMED
-                $status = Vcalendar::IN_PROCESS;
-                break;
-            case 50 : // ASSIGNED
+            case ( 50 <= $value ) : // ASSIGNED
                 $status = Vcalendar::IN_PROCESS;
                 $this->vtodoPartStat = Vcalendar::ACCEPTED;
                 break;
-            case 80 : // RESOLVED
-                $status = Vcalendar::COMPLETED;
+            case ( 40 <= $value ) : // CONFIRMED
+                $status = Vcalendar::IN_PROCESS;
                 break;
-            case 80 : // CLOSED
-                $status = Vcalendar::CANCELLED;
+            case ( 30 <= $value ) : // ACKNOWLEDGED
+                $status = Vcalendar::IN_PROCESS;
                 break;
-        }
+            case ( 20 <= $value ) : // FEEDBACK
+                $status = Vcalendar::NEEDS_ACTION;
+                break;
+            case ( 10 <= $value ) : // NEW_
+                // fall through
+            default :
+                $status = Vcalendar::NEEDS_ACTION;
+                break;
+        } // end switch
         $this->vtodoStatus = [ $status, $valueText ];
-        $this->updateDescriptions( $STATUS, $valueText );
+        $this->updateVtodoDescriptions( $STATUS, $valueText );
     }
 
-    /*
-     * Set Vtodo Summary
+    /**
+     * Set Vtodo Summary/descriptions
      *
      * @param string $summary
+     * @return void
      */
-    public function setSummary( $summary ) {
+    public function setVtodoSummary( string $summary )
+    {
         $this->vtodo->setSummary( $summary );
-        $this->updateDescriptions( strtolower( Vcalendar::SUMMARY ), $summary );
+        $this->updateVtodoDescriptions( strtolower( Vcalendar::SUMMARY ), $summary );
     }
 
-    /*
-     * Get 'X-'-prefixed parameters
+    /**
+     * Return array with 'X-'-prefixed parameter keys
      *
-     * @param array  $parameters
-     * @access private
-     * @static
+     * @param null|array $parameters
+     * @return void
      */
-    private function getXprefixedParameters( $parameters ) {
+    private static function xPrefixParameterKeys( $parameters = [] ) : array
+    {
         static $X = 'X-';
+        if( empty( $parameters )) {
+            return [];
+        }
         $params = [];
         foreach( (array) $parameters as $k => $v ) {
-            $params[$X . $k] = $v;
+            if( 0 !== stripos( $k, $X )) {
+                $params[$X . $k] = $v;
+            }
         }
         return $params;
     }
 
-    /*
-     * render UID
+    /**
+     * Convert eols to ical eol in rtrimmed string
+     *
+     * @param $string
+     * @return string
+     */
+    private static function fixIcalEol( $string ) : string
+    {
+        static $EOLs = [ "\r\n", "\n\r", "\n", "\r" ];
+        return str_replace( $EOLs, self::$ICAL_EOL, rtrim( $string ));
+    }
+
+    /**
+     * Render UID, submitted timestamp + bug_id + unique_id
      *
      * @param int    $timestampSubmitted
      * @param int    $bugId
      * @param string $unique_id
-     * @static
+     * @return string
+     * @throws Exception
      */
-    public static function renderUID( $timestampSubmitted, $bugId, $unique_id ) {
+    public static function renderUID( int $timestampSubmitted, int $bugId, string $unique_id ) : string
+    {
         static $FMTUID = '%s-%s@%s';
         return sprintf(
             $FMTUID,
-            self::renderDate( $timestampSubmitted ),
+            self::renderIcalDateTime( self::timestampToDateTime( $timestampSubmitted )), // UTC
             $bugId,
             $unique_id
         );
     }
 
-    /*
-     * render URL for mantis view-bug-page
+    /**
+     * Render URL for mantis single view-bug-page
      *
      * @param string $url
-     * @param int    $bugId
-     * @static
+     * @param int $bugId
+     * @return string
      */
-    public static function renderURL( $url, $bugId ) {
+    public static function renderURL( string $url, int $bugId ) : string
+    {
         static $FMTURL = '%sview.php?id=%s';
         return sprintf( $FMTURL, $url, $bugId );
     }
 
     /**
-     * Return string UTC datetime from timestamp
+     * Return string iCal format datetime
      *
-     * @param int    $timestamp
-     * @param string $modify
-     * @param string $normalDateFormat
+     * @param DateTime $dateTime
+     * @param null|string $timezone
      * @return string
-     * @throws Exception;
      */
-    public static function renderDate( $timestamp, $modify = null, $normalDateFormat = null ) {
+    public static function renderIcalDateTime( DateTime $dateTime, $timezone = '' ) : string
+    {
         static $DATEFMT = 'Ymd\THis';
-        static $AT      = '@';
-        static $Z       = 'Z';
-        if( empty( $normalDateFormat )) {
-            $normalDateFormat = $DATEFMT;
+        static $SP1     = ' ';
+        return $dateTime->format( $DATEFMT ) .
+            ( empty( $timezone ) ? Vcalendar::Z : $SP1 . $timezone );
+    }
+
+    /**
+     * Return DateTime from timestamp, opt with timezone else UTC
+     *
+     * @param int         $timestamp
+     * @param null|string $timezone
+     * @param null|string $modify
+     * @return DateTime
+     * @throws Exception
+     */
+    public static function timestampToDateTime(
+        int    $timestamp,
+        string $timezone = null,
+        string $modify = null
+    ) : DateTime
+    {
+        static $AT = '@';
+        $t_date    = new DateTime( $AT . $timestamp ); // in UTC
+        if( ! empty( $timezone )) {
+            $t_date->setTimezone( new DateTimeZone( $timezone ));
         }
-        try {
-            $t_date = new DateTime( $AT . $timestamp ); // UTC
-            if( ! empty( $modify )) {
-                $t_date->modify( $modify );
-            }
-            $output = $t_date->format( $normalDateFormat ) . $Z;
+        if( ! empty( $modify )) {
+            $t_date->modify( $modify );
         }
-        catch( Exception $e ) {
-            if( ! empty( $modify )) {
-                $timestamp = strtotime( date( $DATEFMT, $timestamp ) . ' ' . $modify );
-            }
-            $output = date( $normalDateFormat, $timestamp ) . $Z;
-        }
-        return $output;
+        return $t_date;
     }
 }

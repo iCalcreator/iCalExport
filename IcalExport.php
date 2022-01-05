@@ -2,11 +2,11 @@
 /**
  * IcalExport, Mantis calendar Export Plugin
  *
- * Adapted for iCalcreator >= 6.8
+ * Adapted for iCalcreator >= 2.39
  *
  * @package    MantisPlugin
  * @subpackage IcalExport
- * @copyright  Copyright (C) 2013-2019 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
+ * @copyright  Copyright (C) 2013-2022 Kjell-Inge Gustafsson, kigkonsult, All rights reserved.
  * @link       http://kigkonsult.se/IcalExport
  * @license    Subject matter of licence is the software IcalExport.
  *             The above copyright, link, package and version notices,
@@ -26,8 +26,7 @@
  *             You should have received a copy of the GNU Lesser General Public License
  *             along with iCalcreator. If not, see <https://www.gnu.org/licenses/>.
  * @author     Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
- * @version    2.2
- * @since      1.1 - 2017-05-08
+ * @since      2.2 - 2022-01-02
  *
  * This file is a part of IcalExport.
  */
@@ -41,34 +40,48 @@ require_once( config_get( 'class_path' ) . 'MantisPlugin.class.php' );
  */
 class IcalExportPlugin extends MantisPlugin
 {
-    public function register() {
+    /**
+     * @return void
+     */
+    public function register()
+    {
         $this->name        = plugin_lang_get( 'title' );
         $this->description = plugin_lang_get( 'description' );
         $this->page        = '';
 
-        $this->version  = '2.0';
-        $this->requires = [
-            'MantisCore' => '2.0.0',
-        ];
+        $this->version     = '2.2';
+        $this->requires    = [ 'MantisCore' => '2.0.0', ];
 
-        $this->author  = 'Kjell-Inge Gustafsson, kigkonsult';
-        $this->contact = 'ical@kigkonsult.se';
-        $this->url     = 'https://github.com/iCalcreator/IcalExport';
+        $this->author      = 'Kjell-Inge Gustafsson, kigkonsult';
+        $this->contact     = 'ical@kigkonsult.se';
+        $this->url         = 'https://github.com/iCalcreator/IcalExport';
     }
 
-    public function hooks() {
-        $hooks = [
+    /**
+     * @return string[]
+     */
+    public function hooks() : array
+    {
+        return [
             'EVENT_MENU_FILTER' => 'export_issues_menu',
             'EVENT_MENU_ISSUE'  => 'export_issue_menu',
         ];
-        return $hooks;
     }
 
-    function init() {
+    /**
+     * @return void
+     */
+    public function init()
+    {
         require_once 'api/iCalcreator/autoload.php';
     }
 
-    public function export_issues_menu( $p_event ) {
+    /**
+     * @param mixed $p_event
+     * @return array
+     */
+    public function export_issues_menu( $p_event ) : array
+    {
         static $t_atag = '<a class="btn btn-primary btn-white btn-round btn-sm" href="%s" title="%s">%s</a>';
         return [
             sprintf(
@@ -80,10 +93,16 @@ class IcalExportPlugin extends MantisPlugin
         ];
     }
 
-    public function export_issue_menu( $p_event, $p_bug_id ) {
+    /**
+     * @param mixed $p_event
+     * @param int|string $p_bug_id
+     * @return array
+     */
+    public function export_issue_menu( $p_event, $p_bug_id ) : array
+    {
         static $t_atag = '<a class="btn btn-primary btn-white btn-round btn-sm" href="%s&id=%s" title="%s">%s</a>';
         if( empty( $p_bug_id )) {
-            return '';
+            return [];
         }
         return [
             sprintf(
